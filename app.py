@@ -139,4 +139,5 @@ def booking_done():
     return render_template('booking.html', form=form)
 
 
-app.run()
+if __name__ == '__main__':
+    app.run()
