@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block container %}
+
+  <main class="container mt-3">
+    <div class="card my-4 mx-auto">
+      <div class="card-body m-2 m-md-4">
+        <article class="row">
+          <div class="col-5"><img src="{{ tutor.picture }}" class="img-fluid" alt=""></div>
+          <div class="col-7">
+
+            <section class="teacher=info">
+
+              <h1 class="h2">{{ tutor.name }}</h1>
+              <p>{% for goal in tutor.goals %}<span class="badge badge-secondary mr-2">{{ goal_bages[goal] }} </span>{% endfor %}</p>
+              <p>Рейтинг: {{ tutor.rating }} Ставка: {{ tutor.price }} Р / час</p>
+              <p>{{ tutor.about }}</p>
+
+            </section>
+
+            <section class="available">
+
+              <h4 class="mb-4 mt-5">Записаться на пробный урок</h4>
+
+              {% for day, info in tutor.free.items() %}
+              <h6 class="mt-4">{{ day_bages[day] }}</h6>
+              {% if info.values()|sum == 0 %}
+                <p>Нет свободных уроков</p>
+              {% else %}
+                {% for time, val in info.items() %}
+                  {% if val %}<a href="/booking/{{ tutor.id }}/{{ day }}/{{ time.split(':')[0] }}/" class="btn btn-outline-success mr-2 mt-2">{{ time }} свободно</a>{% endif %}
+                {% endfor %}
+              {% endif %}
+              {% endfor %}
+
+            </section>
+
+          </div>
+        </article>
+      </div>
+
+    </div>
+  </main>
+{% endblock %}
