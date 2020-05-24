@@ -84,7 +84,7 @@ class RequestTutor(db.Model):
 
 
 #create SQL DB
-db.create_all()
+#db.create_all()
 
 def add_to_database(database_name, client_data):
     """
