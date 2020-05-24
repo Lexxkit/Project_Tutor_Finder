@@ -5,6 +5,8 @@ from flask import Flask, render_template, request
 from flask_wtf import FlaskForm
 from wtforms import StringField, HiddenField, RadioField
 from wtforms.validators import InputRequired
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
 from random import sample
 import json
@@ -15,6 +17,10 @@ with open('teachers_bd.json', 'r') as f_hand:
 
 app = Flask(__name__)
 app.secret_key = 'mysecretstring'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # set goals
 GOALS = {"travel": "Для путешествий", "study": "Для учебы", "work": "Для работы",
@@ -40,6 +46,45 @@ class RequestForm(FlaskForm):
     client_name = StringField('Вас зовут', [InputRequired()])
     client_phone = StringField('Ваш телефон', [InputRequired()])
 
+
+#create Tutor DB model
+class Tutor(db.Model):
+    __tablename__ = 'tutors'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    about = db.Column(db.Text, nullable=False)
+    rating = db.Column(db.Float, nullable=False)
+    picture = db.Column(db.String, nullable=False)
+    price = db.Column(db.Integer, nullable=False)
+    goals = db.Column(db.String, nullable=False)
+    free = db.Column(db.String, nullable=False)
+    students = db.relationship('Booking', back_populates='tutor')
+
+
+#create Booking DB model
+class Booking(db.Model):
+    __tablename__ = 'bookings'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    phone = db.Column(db.String, nullable=False)
+    day = db.Column(db.String, nullable=False)
+    time = db.Column(db.String, nullable=False)
+    tutor_id = db.Column(db.Integer, db.ForeignKey('tutors.id'))
+    tutor = db.relationship('Tutor', back_populates='students')
+
+
+#create Request DB model
+class RequestTutor(db.Model):
+    __tablename__ = 'requests'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    phone = db.Column(db.String, nullable=False)
+    time = db.Column(db.String, nullable=False)
+    goal = db.Column(db.String, nullable=False)
+
+
+#create SQL DB
+db.create_all()
 
 def add_to_database(database_name, client_data):
     """
