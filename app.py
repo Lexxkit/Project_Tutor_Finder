@@ -1,15 +1,16 @@
 """Run 'project_bd.py' script before the first start of this app to create all necessary DB-like json files.
 If you add a new goal in the GOALS dict, you can add icon for it
-in the goals_pics dictionary in the 'base.html' template for render at web pages"""
+in the goals_pics dictionary in the 'base.html' template for render at web pages
+"""
+from random import sample
+import json
+
 from flask import Flask, render_template, request
 from flask_wtf import FlaskForm
 from wtforms import StringField, HiddenField, RadioField
 from wtforms.validators import InputRequired
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-
-from random import sample
-import json
 
 # Read information from teachers DB
 with open('teachers_bd.json', 'r') as f_hand:
@@ -51,13 +52,13 @@ class RequestForm(FlaskForm):
 class Tutor(db.Model):
     __tablename__ = 'tutors'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
+    name = db.Column(db.String(30), nullable=False)
     about = db.Column(db.Text, nullable=False)
     rating = db.Column(db.Float, nullable=False)
     picture = db.Column(db.String, nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    goals = db.Column(db.String, nullable=False)
-    free = db.Column(db.String, nullable=False)
+    goals = db.Column(db.Text, nullable=False)
+    free = db.Column(db.Text, nullable=False)
     students = db.relationship('Booking', back_populates='tutor')
 
 
@@ -83,8 +84,24 @@ class RequestTutor(db.Model):
     goal = db.Column(db.String, nullable=False)
 
 
-#create SQL DB
-#db.create_all()
+def update_tutors_db(tutors):
+    """Export data from decoded json file to SQLite DB table 'tutors'.
+    Should be run manually from command line.
+    """
+    tutors_entries = []
+    for tutor in tutors:
+        # create strings from list and dict objects
+        goals = ','.join(tutor['goals'])
+        free = json.dumps(tutor['free'])
+
+        new_entry = Tutor(name=tutor['name'], about=tutor['about'],
+                          rating=tutor['rating'], picture=tutor['picture'], price=tutor['price'],
+                          goals=goals, free=free)
+        tutors_entries.append(new_entry)
+
+    db.session.add_all(tutors_entries)
+    db.session.commit()
+
 
 def add_to_database(database_name, client_data):
     """
@@ -124,8 +141,15 @@ def goals(goal):
 
 @app.route('/profiles/<int:tutor_id>/')
 def profiles(tutor_id):
-    tutor = tutors[tutor_id]
-    return render_template('profile.html', tutor=tutor, goal_bages=GOALS)
+    # get tutor from DB or throwback 404 error
+    tutor = db.session.query(Tutor).get_or_404(tutor_id)
+
+    #create list and dict objects from strings
+    tutor_goals = tutor.goals.split(',')
+    tutor_free = json.loads(tutor.free)
+
+    return render_template('profile.html', tutor=tutor, tutor_goals=tutor_goals,
+                           tutor_free=tutor_free, goal_bages=GOALS)
 
 
 @app.route('/request/', methods=['GET', 'POST'])
