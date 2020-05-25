@@ -2,7 +2,6 @@
 If you add a new goal in the GOALS dict, you can add icon for it
 in the goals_pics dictionary in the 'base.html' template for render at web pages
 """
-from random import sample
 import json
 
 from flask import Flask, render_template, request
@@ -12,9 +11,6 @@ from wtforms.validators import InputRequired
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-# Read information from teachers DB
-with open('teachers_bd.json', 'r') as f_hand:
-    tutors = json.load(f_hand)
 
 app = Flask(__name__)
 app.secret_key = 'mysecretstring'
@@ -84,10 +80,14 @@ class RequestTutor(db.Model):
     goal = db.Column(db.String, nullable=False)
 
 
-def update_tutors_db(tutors):
-    """Export data from decoded json file to SQLite DB table 'tutors'.
+def add_tutors_db(data='teachers_bd.json'):
+    """Export data from json file to SQL DB table 'tutors'.
     Should be run manually from command line.
     """
+    # Read information from JSON file
+    with open(data, 'r') as f_hand:
+        tutors = json.load(f_hand)
+
     tutors_entries = []
     for tutor in tutors:
         # create strings from list and dict objects
@@ -103,24 +103,10 @@ def update_tutors_db(tutors):
     db.session.commit()
 
 
-def add_to_database(database_name, client_data):
-    """
-    Helper function to add new data to json DB-like files
-    """
-    # read data from the json file
-    with open(database_name, 'r') as f_hand:
-        database_data = json.load(f_hand)
-
-    # add new data to the existing one and write it to the json file
-    database_data.append(client_data)
-    with open(database_name, 'w') as f_hand:
-        json.dump(database_data, f_hand, ensure_ascii=False)
-
-
 @app.route('/')
 def index():
-    # get 6 random tutors
-    random_tutors = sample(tutors, 6)
+    # get 6 random tutors from DB
+    random_tutors = Tutor.query.order_by(db.func.random()).limit(6).all()
 
     return render_template('index.html', rand_tutors=random_tutors, goals=GOALS)
 
@@ -130,11 +116,14 @@ def goals(goal):
     # get goal for render in template
     client_goal = GOALS[goal].lower()
 
+    # get all tutors from DB (if 'goals' table will be added - rewrite this function)
+    tutors_query = Tutor.query.all()
+
     # get tutors list with the chosen goal
-    filtered_tutors = [tutor for tutor in tutors if goal in tutor['goals']]
+    filtered_tutors = [tutor for tutor in tutors_query if goal in tutor.goals.split(',')]
 
     # sorted by rating in descending order
-    filtered_tutors = sorted(filtered_tutors, key=lambda k: k['rating'], reverse=True)
+    filtered_tutors = sorted(filtered_tutors, key=lambda k: k.rating, reverse=True)
 
     return render_template('goal.html', client_goal=client_goal, filt_tutors=filtered_tutors, goal=goal)
 
@@ -144,7 +133,7 @@ def profiles(tutor_id):
     # get tutor from DB or throwback 404 error
     tutor = db.session.query(Tutor).get_or_404(tutor_id)
 
-    #create list and dict objects from strings
+    # create list and dict objects from strings
     tutor_goals = tutor.goals.split(',')
     tutor_free = json.loads(tutor.free)
 
@@ -165,10 +154,11 @@ def render_request():
         goal = form.goal_buttons.data
         time = form.time_buttons.data
 
-        # create dict with data for writing to 'request.json' DB
-        client_data = {'name': name, 'phone': phone, 'time': time, 'goal': goal}
+        # create DB instance with client data
+        client_data = RequestTutor(name=name, phone=phone, time=time, goal=goal)
         # update DB
-        add_to_database('request.json', client_data)
+        db.session.add(client_data)
+        db.session.commit()
 
         return render_template('request_done.html', name=name, phone=phone, time=time, goal=goal, goal_bages=GOALS)
 
@@ -176,20 +166,16 @@ def render_request():
     return render_template('request.html', form=form)
 
 
-@app.route('/booking/<int:tutor_id>/<day>/<time>/')
+@app.route('/booking/<int:tutor_id>/<day>/<time>/', methods=['GET', 'POST'])
 def booking(tutor_id, day, time):
-    tutor = tutors[tutor_id]
+    # get tutor from DB or throwback 404 error
+    tutor = db.session.query(Tutor).get_or_404(tutor_id)
+
     # create the form
     form = BookingForm()
 
-    return render_template('booking.html', tutor=tutor, day=day, time=time, form=form)
-
-
-@app.route('/booking_done/', methods=['POST'])
-def booking_done():
-    form = BookingForm()
-    # check if data is valid
-    if form.validate():
+    # if data WAS sent and is valid
+    if request.method == 'POST' and form.validate():
         # get data from the form
         name = form.client_name.data
         phone = form.client_phone.data
@@ -197,15 +183,17 @@ def booking_done():
         time = form.client_time.data
         tutor_id = int(form.client_teacher.data)
 
-        # create dict with data for writing to 'booking.json' DB
-        client_data = {'name': name, 'phone': phone, 'day': day, 'time': time, 'tutor_id': tutor_id}
+        # create DB instance with client data
+        client_data = Booking(name=name, phone=phone, day=day, time=time, tutor_id=tutor_id)
         # update DB
-        add_to_database('booking.json', client_data)
+        db.session.add(client_data)
+        db.session.commit()
 
         return render_template('booking_done.html', name=name, phone=phone,
-                               day=day, time=time, picture=tutors[tutor_id]['picture'])
+                               day=day, time=time, picture=tutor.picture)
 
-    return render_template('booking.html', form=form)
+    # if data WAS NOT sent yet
+    return render_template('booking.html', tutor=tutor, day=day, time=time, form=form)
 
 
 if __name__ == '__main__':
