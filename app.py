@@ -23,14 +23,14 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 # set goals
-GOALS = {"travel": "Для путешествий", "study": "Для учебы", "work": "Для работы",
-         "relocate": "Для переезда", 'program': 'Для программирования'}
+GOALS = {'travel': 'Для путешествий', 'study': 'Для учебы', 'work': 'Для работы',
+         'relocate': 'Для переезда', 'program': 'Для программирования'}
 
 
 # declare BookingForm for 'booking.html' template
 class BookingForm(FlaskForm):
-    client_name = StringField("Вас зовут", [InputRequired()])
-    client_phone = StringField("Ваш телефон", [InputRequired()])
+    client_name = StringField('Вас зовут', [InputRequired()])
+    client_phone = StringField('Ваш телефон', [InputRequired()])
     client_weekday = HiddenField()
     client_time = HiddenField()
     client_teacher = HiddenField()
