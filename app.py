@@ -1,6 +1,9 @@
-"""Run 'project_bd.py' script before the first start of this app to create all necessary DB-like json files.
-If you add a new goal in the GOALS dict, you can add icon for it
-in the goals_pics dictionary in the 'base.html' template for render at web pages
+"""Before the first start of this app:
+1. Run 'project_bd.py' script to create all necessary DB-like json files.
+2. Make DB migration
+3. Run add_data_to_db() function to fill the DB with data.
+If you add a new goal in the GOALS dict - run update_goals_db() function. You can add icon
+for it in the goals_pics dictionary in the 'base.html' template for render it at web pages.
 """
 import json
 
@@ -44,7 +47,13 @@ class RequestForm(FlaskForm):
     client_phone = StringField('Ваш телефон', [InputRequired()])
 
 
-#create Tutor DB model
+tutors_goals_association = db.Table('tutors_goals',
+                                    db.Column('tutor_id', db.Integer, db.ForeignKey('tutors.id')),
+                                    db.Column('goal_id', db.Integer, db.ForeignKey('goals.id'))
+                                    )
+
+
+# create Tutor DB model
 class Tutor(db.Model):
     __tablename__ = 'tutors'
     id = db.Column(db.Integer, primary_key=True)
@@ -53,12 +62,12 @@ class Tutor(db.Model):
     rating = db.Column(db.Float, nullable=False)
     picture = db.Column(db.String, nullable=False)
     price = db.Column(db.Integer, nullable=False)
-    goals = db.Column(db.Text, nullable=False)
     free = db.Column(db.Text, nullable=False)
     students = db.relationship('Booking', back_populates='tutor')
+    goals = db.relationship('Goal', secondary=tutors_goals_association, back_populates='tutors')
 
 
-#create Booking DB model
+# create Booking DB model
 class Booking(db.Model):
     __tablename__ = 'bookings'
     id = db.Column(db.Integer, primary_key=True)
@@ -70,7 +79,7 @@ class Booking(db.Model):
     tutor = db.relationship('Tutor', back_populates='students')
 
 
-#create Request DB model
+# create Request DB model
 class RequestTutor(db.Model):
     __tablename__ = 'requests'
     id = db.Column(db.Integer, primary_key=True)
@@ -80,26 +89,65 @@ class RequestTutor(db.Model):
     goal = db.Column(db.String, nullable=False)
 
 
-def add_tutors_db(data='teachers_bd.json'):
+class Goal(db.Model):
+    __tablename__ = 'goals'
+    id = db.Column(db.Integer, primary_key=True)
+    goal_badge = db.Column(db.String(15), nullable=False)
+    goal_name = db.Column(db.String(30), nullable=False)
+    tutors = db.relationship('Tutor', secondary=tutors_goals_association, back_populates='goals')
+
+
+def add_data_to_db(data='teachers_bd.json', goals_dict=GOALS):
     """Export data from json file to SQL DB table 'tutors'.
-    Should be run manually from command line.
+    Export data from GOALS dict to DB table 'goals'.
+    Create many-to-many relation between 'tutors' and 'goals' tables.
+    Should be run manually after the first DB migration.
     """
     # Read information from JSON file
     with open(data, 'r') as f_hand:
         tutors = json.load(f_hand)
 
-    tutors_entries = []
+    # add data to DB 'goals' table
+    for badge, name in goals_dict.items():
+        new_goal = Goal(goal_badge=badge, goal_name=name)
+        db.session.add(new_goal)
+
+    # add data to DB 'tutors' table
     for tutor in tutors:
-        # create strings from list and dict objects
-        goals = ','.join(tutor['goals'])
+        # create string from dict object
         free = json.dumps(tutor['free'])
 
         new_entry = Tutor(name=tutor['name'], about=tutor['about'],
-                          rating=tutor['rating'], picture=tutor['picture'], price=tutor['price'],
-                          goals=goals, free=free)
-        tutors_entries.append(new_entry)
+                          rating=tutor['rating'], picture=tutor['picture'],
+                          price=tutor['price'], free=free)
+        db.session.add(new_entry)
+        # connect 'goals' and 'tutors'
+        for goal in tutor['goals']:
+            goal_query = Goal.query.filter(Goal.goal_badge == goal).first()
+            new_entry.goals.append(goal_query)
 
-    db.session.add_all(tutors_entries)
+    db.session.commit()
+
+
+def update_goals_db(goals_dict, tutors_id_list):
+    """Append new goals to the DB 'goals' table and
+    set connection with chosen tutors.
+    Should be run manually.
+
+    :param goals_dict: extended GOALS or new dict with goals
+    :param tutors_id_list: list of tutor_ids to whom new goals should be connected
+    """
+    for badge, name in goals_dict.items():
+        goals_query = Goal.query.filter(Goal.goal_badge == badge).all()
+        if not goals_query:
+            new_goal = Goal(goal_badge=badge, goal_name=name)
+            db.session.add(new_goal)
+            for tutor_id in tutors_id_list:
+                tutor_query = Tutor.query.get(tutor_id)
+                if tutor_query:
+                    new_goal.tutors.append(tutor_query)
+                    print(f'New goal {new_goal.goal_badge} added to tutor {tutor_query.id}')
+
     db.session.commit()
 
 
@@ -107,8 +155,9 @@ def add_tutors_db(data='teachers_bd.json'):
 def index():
     # get 6 random tutors from DB
     random_tutors = Tutor.query.order_by(db.func.random()).limit(6).all()
+    goals_all = Goal.query.all()
 
-    return render_template('index.html', rand_tutors=random_tutors, goals=GOALS)
+    return render_template('index.html', rand_tutors=random_tutors, goals=goals_all)
 
 
 @app.route('/goals/<goal>/')
@@ -116,16 +165,11 @@ def goals(goal):
     # get goal for render in template
     client_goal = GOALS[goal].lower()
 
-    # get all tutors from DB (if 'goals' table will be added - rewrite this function)
-    tutors_query = Tutor.query.all()
+    # get tutors with chosen goal in desc order from DB
+    tutors_query = Tutor.query.filter(Tutor.goals.any(Goal.goal_badge == goal)).\
+        order_by(Tutor.rating.desc()).all()
 
-    # get tutors list with the chosen goal
-    filtered_tutors = [tutor for tutor in tutors_query if goal in tutor.goals.split(',')]
-
-    # sorted by rating in descending order
-    filtered_tutors = sorted(filtered_tutors, key=lambda k: k.rating, reverse=True)
-
-    return render_template('goal.html', client_goal=client_goal, filt_tutors=filtered_tutors, goal=goal)
+    return render_template('goal.html', client_goal=client_goal, filt_tutors=tutors_query, goal=goal)
 
 
 @app.route('/profiles/<int:tutor_id>/')
@@ -133,12 +177,10 @@ def profiles(tutor_id):
     # get tutor from DB or throwback 404 error
     tutor = db.session.query(Tutor).get_or_404(tutor_id)
 
-    # create list and dict objects from strings
-    tutor_goals = tutor.goals.split(',')
+    # create dict object from string
     tutor_free = json.loads(tutor.free)
 
-    return render_template('profile.html', tutor=tutor, tutor_goals=tutor_goals,
-                           tutor_free=tutor_free, goal_bages=GOALS)
+    return render_template('profile.html', tutor=tutor, tutor_free=tutor_free)
 
 
 @app.route('/request/', methods=['GET', 'POST'])
