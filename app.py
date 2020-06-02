@@ -1,13 +1,13 @@
 """Run 'project_bd.py' script before the first start of this app to create all necessary DB-like json files.
 If you add a new goal in the GOALS dict, you can add icon for it
 in the goals_pics dictionary in the 'base.html' template for render at web pages"""
+import json
+from random import sample
+
 from flask import Flask, render_template, request
 from flask_wtf import FlaskForm
 from wtforms import StringField, HiddenField, RadioField
 from wtforms.validators import InputRequired
-
-from random import sample
-import json
 
 # Read information from teachers DB
 with open('teachers_bd.json', 'r') as f_hand:

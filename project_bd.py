@@ -2,9 +2,10 @@
  - teacher.json file from the mok data at data.py
  - booking.json and request.json - empty files to use in app.py for DB purposes
 Run it once before start the app!!! Otherwise, all saved data will be deleted!"""
-import data
 import json
-import pprint
+import pprint   # this import is used for commented section
+
+import data
 
 with open('teachers_bd.json', 'w', encoding='utf-8') as f_w:
     json.dump(data.teachers, f_w, ensure_ascii=False)
