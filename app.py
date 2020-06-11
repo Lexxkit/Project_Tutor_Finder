@@ -1,7 +1,6 @@
 """Before the first start of this app:
-1. Run 'project_bd.py' script to create all necessary DB-like json files.
-2. Make DB migration
-3. Run add_data_to_db() function to fill the DB with data.
+1. Make DB migration and upgrade.
+2. Run add_data_to_db() function to fill the DB with data.
 If you add a new goal in the GOALS dict - run update_goals_db() function. You can add icon
 for it in the goals_pics dictionary in the 'base.html' template for render it at web pages.
 """

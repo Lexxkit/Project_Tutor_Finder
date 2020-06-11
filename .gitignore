@@ -1,2 +1,5 @@
 /venv/
 /some_test.py
+.idea
+**/.DS_Store
+/test.db
