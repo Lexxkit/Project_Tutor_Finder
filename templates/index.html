@@ -5,8 +5,8 @@
     <h1 class="h1 text-center mx-auto mt-4 py-5"><strong>Найдите идеального <br>репетитора английского, <br>занимайтесь онлайн</strong></h1>
     <div class="text-center mb-5">
       <div class="btn-group mx-auto mb-0" role="group" aria-label="Basic example">
-        {% for goal, label in goals.items() %}
-        <a href="/goals/{{ goal }}" class="btn btn-outline-secondary">{{ goals_pics[goal] if goal in goals_pics.keys() }} {{ label }}</a>
+        {% for goal in goals %}
+        <a href="/goals/{{ goal.goal_badge }}" class="btn btn-outline-secondary">{{ goals_pics[goal.goal_badge] if goal.goal_badge in goals_pics.keys() }} {{ goal.goal_name }}</a>
         {% endfor %}
       </div>
     </div>
