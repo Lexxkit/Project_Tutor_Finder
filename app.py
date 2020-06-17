@@ -74,7 +74,8 @@ def goals(goal):
     # sorted by rating in descending order
     filtered_tutors = sorted(filtered_tutors, key=lambda k: k['rating'], reverse=True)
 
-    return render_template('goal.html', client_goal=client_goal, filt_tutors=filtered_tutors, goal=goal)
+    return render_template('goal.html', client_goal=client_goal,
+                           filt_tutors=filtered_tutors, goal=goal)
 
 
 @app.route('/profiles/<int:tutor_id>/')
@@ -101,7 +102,10 @@ def render_request():
         # update DB
         add_to_database('request.json', client_data)
 
-        return render_template('request_done.html', name=name, phone=phone, time=time, goal=goal, goal_bages=GOALS)
+        return render_template(
+            'request_done.html', name=name, phone=phone,
+            time=time, goal=goal, goal_bages=GOALS
+        )
 
     # if data WAS NOT sent yet
     return render_template('request.html', form=form)
