@@ -1,5 +1,5 @@
 """Before the first start of this app:
-1. Make DB migration and upgrade.
+1. Run 'flask db upgrade'.
 2. Run add_data_to_db() function to fill the DB with data.
 If you add a new goal in the GOALS dict - run update_goals_db() function. You can add icon
 for it in the goals_pics dictionary in the 'base.html' template for render it at web pages.
@@ -156,7 +156,10 @@ def index():
     random_tutors = Tutor.query.order_by(db.func.random()).limit(6).all()
     goals_all = Goal.query.all()
 
-    return render_template('index.html', rand_tutors=random_tutors, goals=goals_all)
+    return render_template(
+        'index.html', rand_tutors=random_tutors,
+        goals=goals_all
+    )
 
 
 @app.route('/goals/<goal>/')
@@ -168,7 +171,10 @@ def goals(goal):
     tutors_query = Tutor.query.filter(Tutor.goals.any(Goal.goal_badge == goal)).\
         order_by(Tutor.rating.desc()).all()
 
-    return render_template('goal.html', client_goal=client_goal, filt_tutors=tutors_query, goal=goal)
+    return render_template(
+        'goal.html', client_goal=client_goal,
+        filt_tutors=tutors_query, goal=goal
+    )
 
 
 @app.route('/profiles/<int:tutor_id>/')
@@ -179,7 +185,10 @@ def profiles(tutor_id):
     # create dict object from string
     tutor_free = json.loads(tutor.free)
 
-    return render_template('profile.html', tutor=tutor, tutor_free=tutor_free)
+    return render_template(
+        'profile.html', tutor=tutor,
+        tutor_free=tutor_free
+    )
 
 
 @app.route('/request/', methods=['GET', 'POST'])
@@ -201,7 +210,10 @@ def render_request():
         db.session.add(client_data)
         db.session.commit()
 
-        return render_template('request_done.html', name=name, phone=phone, time=time, goal=goal, goal_bages=GOALS)
+        return render_template(
+            'request_done.html', name=name, phone=phone,
+            time=time, goal=goal, goal_bages=GOALS
+        )
 
     # if data WAS NOT sent yet
     return render_template('request.html', form=form)
@@ -225,16 +237,20 @@ def booking(tutor_id, day, time):
         tutor_id = int(form.client_teacher.data)
 
         # create DB instance with client data
-        client_data = Booking(name=name, phone=phone, day=day, time=time, tutor_id=tutor_id)
+        client_data = Booking(name=name, phone=phone, day=day,
+                              time=time, tutor_id=tutor_id)
         # update DB
         db.session.add(client_data)
         db.session.commit()
 
-        return render_template('booking_done.html', name=name, phone=phone,
-                               day=day, time=time, picture=tutor.picture)
+        return render_template(
+            'booking_done.html', name=name, phone=phone,
+            day=day, time=time, picture=tutor.picture
+        )
 
     # if data WAS NOT sent yet
-    return render_template('booking.html', tutor=tutor, day=day, time=time, form=form)
+    return render_template('booking.html', tutor=tutor,
+                           day=day, time=time, form=form)
 
 
 if __name__ == '__main__':
